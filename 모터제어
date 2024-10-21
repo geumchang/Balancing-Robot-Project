@@ -1,0 +1,85 @@
+#define F_CPU 14745600UL
+#include <util/delay.h>
+#include <avr/io.h>
+
+#define ENABLE_A PB6  // OC1B 핀 for A모터 (PWM)
+#define IN1_A    PA0  // IN1_A 핀 for A모터 (direction)
+#define IN2_A    PA1  // IN2_A 핀 for A모터 (direction)
+
+#define ENABLE_B PB5  // OC1A 핀 for B모터 (PWM)
+#define IN3_B    PA6  // IN3_B 핀 for B모터 (direction)
+#define IN4_B    PA7  // IN4_B 핀 for B모터 (direction)
+
+#define speedDC  255
+
+void setup()
+{
+	DDRA |= (1 << IN1_A) | (1 << IN2_A);  // A모터 방향 제어 핀
+	DDRA |= (1 << IN3_B) | (1 << IN4_B);  // B모터 방향 제어 핀
+	
+	// 타이머1 설정 (PB6 = OC1B 핀)
+	TCCR1A = (1 << WGM10) | (1 << COM1B1) | (1 << COM1A1); // Fast PWM 모드, OC1B, OC1A 활성화
+	TCCR1B = (1 << WGM12) | (1 << CS11);  // 분주비 64 (PWM 모드, 속도 설정)
+	
+	DDRB |= (1 << ENABLE_A);  // OC1B 핀을 출력으로 설정 (A모터)
+	DDRB |= (1 << ENABLE_B);  // OC1A 핀을 출력으로 설정 (B모터)
+}
+
+void motor_speed(int spd)
+{
+	// PWM duty cycle 설정
+	OCR1B = spd;   // A모터
+	OCR1A = spd;   // B모터
+}
+
+void motor_dir(int dir)
+{
+	switch (dir)
+	{
+		case 0:  // 모터 A,B 모두 순방향
+		PORTA = (PORTA & ~((1 << IN1_A) | (1 << IN2_A) | (1 << IN3_B) | (1 << IN4_B))) | (1 << IN1_A) | (1 << IN3_B);
+		break;
+		case 1:  // 모터 A: 순방향, 모터 B: 역방향
+		PORTA = (PORTA & ~((1 << IN1_A) | (1 << IN2_A) | (1 << IN3_B) | (1 << IN4_B))) | (1 << IN1_A) | (1 << IN4_B);
+		break;
+		case 2:  // 모터 A: 역방향, 모터 B: 순방향
+		PORTA = (PORTA & ~((1 << IN1_A) | (1 << IN2_A) | (1 << IN3_B) | (1 << IN4_B))) | (1 << IN2_A) | (1 << IN3_B);
+		break;
+		case 3:  // 모터 A, B 모두 역방향
+		PORTA = (PORTA & ~((1 << IN1_A) | (1 << IN2_A) | (1 << IN3_B) | (1 << IN4_B))) | (1 << IN2_A) | (1 << IN4_B);
+		break;
+	}
+}
+
+int main(void)
+{
+	setup();
+
+	while (1)
+	{
+		motor_dir(0);        // 모터 순방향
+		motor_speed(200);    // 속도 설정
+		_delay_ms(2000);     // 2초 후 정지
+		motor_speed(0);
+		_delay_ms(2000);
+
+		motor_dir(1);        // 모터 방향 변경
+		motor_speed(200);
+		_delay_ms(2000);
+		motor_speed(0);
+		_delay_ms(2000);
+		
+		motor_dir(2);        // 모터 방향 변경
+		motor_speed(200);
+		_delay_ms(2000);
+		motor_speed(0);
+		_delay_ms(2000);
+		
+		motor_dir(3);        // 모터 방향 변경
+		motor_speed(200);
+		_delay_ms(2000);
+		motor_speed(0);
+		_delay_ms(2000);
+	}
+	return 0;
+}
